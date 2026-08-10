@@ -1,0 +1,32 @@
+# Raw and processed data (large; see data/README.md for acquisition)
+data/raw/
+data/processed/
+
+# Results and notebook outputs
+results/
+*.parquet
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+
+# Jupyter
+.ipynb_checkpoints/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/

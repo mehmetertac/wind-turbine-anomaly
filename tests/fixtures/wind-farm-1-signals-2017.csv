@@ -1,0 +1,4 @@
+Timestamp,Turbine_ID,Gear_Oil_Temp_Avg,Gear_Bear_Temp_Avg,Grd_Prod_Pwr_Avg,Rtr_RPM_Avg,Amb_WindSpeed_Avg,Amb_WindDir_Relative_Avg,Nac_Temp_Avg
+2017-01-01T00:00:00+00:00,T01,46.5,51.5,830.0,12.3,8.5,185.0,21.0
+2017-06-01T00:00:00+00:00,T06,48.0,53.0,890.0,13.0,10.0,205.0,24.0
+2017-10-15T00:00:00+00:00,T06,62.0,67.0,950.0,13.5,11.5,215.0,27.0
