@@ -34,6 +34,7 @@ pip install -e ".[dev]"
 pre-commit install
 
 # Download data — see data/README.md
+python scripts/generate_synthetic_edp.py --force   # if EDP portal unavailable
 python scripts/download_edp.py --check
 
 # Run tests
@@ -48,6 +49,7 @@ jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 - [Data guide](docs/DATA.md) — channels, turbines, gearbox failure events
 - [Evaluation protocol](docs/EVALUATION.md) — rolling-origin, lead time, false-alarm metrics
 - [Data acquisition](data/README.md) — EDP portal and Mendeley fallback
+- [Handover](handover.md) — current status, data situation, next steps
 - [Agent rules](AGENT.md) — contribution and testing requirements
 
 ## License

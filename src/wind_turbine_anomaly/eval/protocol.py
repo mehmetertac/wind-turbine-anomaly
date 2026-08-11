@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from datetime import timedelta
 
+import numpy as np
 import pandas as pd
 
 from wind_turbine_anomaly.utils import to_utc
@@ -209,16 +210,27 @@ def false_alarms_per_turbine_year(results: list[TurbineEvalResult]) -> float:
     return total_false / total_years
 
 
+def _json_value(value):
+    """Convert metric values to JSON-serializable form."""
+    if value is None:
+        return None
+    if isinstance(value, float) and (np.isnan(value) or np.isinf(value)):
+        return None
+    if hasattr(value, "isoformat"):
+        return value.isoformat()
+    return value
+
+
 def results_to_dict(results: list[TurbineEvalResult], horizon_days: int) -> dict:
     """Serialize evaluation results for JSON export."""
+    rate = false_alarms_per_turbine_year(results)
     return {
         "horizon_days": horizon_days,
-        "false_alarms_per_turbine_year": false_alarms_per_turbine_year(results),
+        "false_alarms_per_turbine_year": None
+        if np.isnan(rate)
+        else rate,
         "turbines": [
-            {
-                **{k: (v.isoformat() if hasattr(v, "isoformat") else v)
-                   for k, v in asdict(r).items()}
-            }
+            {k: _json_value(v) for k, v in asdict(r).items()}
             for r in results
         ],
     }

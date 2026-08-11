@@ -14,7 +14,7 @@ Guidelines for AI agents and contributors working in this repository.
   - [`README.md`](README.md) — project overview and maintenance narrative
   - [`docs/DATA.md`](docs/DATA.md) — EDP dataset, channels, failure events
   - [`docs/EVALUATION.md`](docs/EVALUATION.md) — rolling-origin evaluation protocol
-  - [`data/README.md`](data/README.md) — how to download raw data
+- [`handover.md`](handover.md) — session handover, current status, next steps
 
 ## Testing
 

@@ -2,6 +2,16 @@
 
 EDP onshore wind-farm SCADA and failure logs used in this project. See [data/README.md](../data/README.md) for download instructions.
 
+## Synthetic development data
+
+If the EDP portal is unavailable, generate a local dataset with matching schema and failure dates:
+
+```bash
+python scripts/generate_synthetic_edp.py --force
+```
+
+Look for `.synthetic_edp` in `data/raw/edp/` to confirm synthetic mode. Use for pipeline development only — not for comparing to published EDP benchmarks.
+
 ## Turbines
 
 | ID | Notes |
