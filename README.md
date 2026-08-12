@@ -13,7 +13,7 @@ Gearbox failures are among the costliest wind-turbine events: crane mobilization
 | Pure ML (Days 1–2) | Isolation Forest, autoencoder, LSTM-AE | Multivariate baseline on raw SCADA |
 | Hybrid (Days 3–5) | Physics-informed residual + ML | Model expected gearbox temp from power, ambient, load; detect regime shifts in residuals |
 
-Current status: **Isolation Forest baseline** implemented. See [`notebooks/01_eda_and_if_baseline.ipynb`](notebooks/01_eda_and_if_baseline.ipynb).
+Current status: **All three pure-ML baselines** implemented (Isolation Forest, dense autoencoder, LSTM-AE). Run `python scripts/run_all_ml_baselines.py` to produce `results/metrics.csv` and score trajectory plots. See [`notebooks/01_eda_and_if_baseline.ipynb`](notebooks/01_eda_and_if_baseline.ipynb).
 
 ## What this means in maintenance terms
 
@@ -40,7 +40,10 @@ python scripts/download_edp.py --check
 # Run tests
 pytest -q
 
-# Run baseline notebook (requires raw data in data/raw/edp/)
+# Run all pure-ML baselines (IF + autoencoders + benchmark CSV + plots)
+python scripts/run_all_ml_baselines.py
+
+# Or run baseline notebook (requires raw data in data/raw/edp/)
 jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 ```
 

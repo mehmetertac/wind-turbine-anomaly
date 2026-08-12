@@ -3,7 +3,7 @@
 **Repo:** https://github.com/mehmetertac/wind-turbine-anomaly  
 **Branch:** `main`  
 **Last updated:** August 2026  
-**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol
+**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol; Task 2 — dense + LSTM autoencoder baselines, benchmark table
 
 ---
 
@@ -11,7 +11,7 @@
 
 Predict **gearbox failures N days ahead** on wind-turbine SCADA. Compare:
 
-1. **Pure ML** — Isolation Forest → autoencoder → LSTM-AE (Task 1 done: Isolation Forest)
+1. **Pure ML** — Isolation Forest, dense autoencoder, LSTM-AE (all three implemented)
 2. **Physics-residual hybrid** — expected gearbox temp from power/ambient/load; detect residual regime shifts (not started)
 
 Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_REFLECTION.md`.
@@ -26,12 +26,17 @@ Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_
 | SCADA cleaning + healthy mask | `src/wind_turbine_anomaly/data/clean.py` | Done |
 | **Synthetic EDP generator** | `src/wind_turbine_anomaly/data/synthetic_edp.py` | Done |
 | Isolation Forest baseline | `src/wind_turbine_anomaly/models/isolation_forest.py` | Done |
+| Dense autoencoder baseline | `src/wind_turbine_anomaly/models/dense_autoencoder.py` | Done |
+| LSTM autoencoder baseline | `src/wind_turbine_anomaly/models/lstm_autoencoder.py` | Done |
+| Unified baseline runner | `src/wind_turbine_anomaly/eval/baseline_runner.py` | Done |
+| Benchmark table + plots | `results/metrics.csv`, `results/plots/trajectory_*.png` | Done |
 | Evaluation protocol | `src/wind_turbine_anomaly/eval/protocol.py` | Done |
 | CLI: data check | `scripts/download_edp.py` | Done |
 | CLI: synthetic data | `scripts/generate_synthetic_edp.py` | Done |
 | CLI: baseline run | `scripts/run_if_baseline.py` | Done |
+| CLI: all ML baselines | `scripts/run_all_ml_baselines.py` | Done |
 | Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done |
-| Unit tests | `tests/` (21 tests) | Passing |
+| Unit tests | `tests/` (26 tests) | Passing |
 | Pre-commit hook | `.pre-commit-config.yaml` | Runs `pytest -q` |
 
 ---
@@ -78,6 +83,7 @@ python scripts/generate_synthetic_edp.py --force   # synthetic
 python scripts/download_edp.py --check
 pytest -q
 python scripts/run_if_baseline.py
+python scripts/run_all_ml_baselines.py   # IF + AEs + metrics.csv + trajectory plots
 jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 ```
 
@@ -85,7 +91,15 @@ jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 
 ## 5. Latest baseline results (synthetic data)
 
-From `results/isolation_forest/metrics.json` after last run on **synthetic** data:
+Run `python scripts/run_all_ml_baselines.py` to regenerate. Consolidated benchmark:
+
+**`results/metrics.csv`** — one row per detector with T01/T06 lead times and aggregate false-alarm rate. This is the benchmark the physics-residual hybrid must beat.
+
+Per-detector detail in `results/{isolation_forest,dense_autoencoder,lstm_autoencoder}/metrics.json`.
+
+Score trajectory plots (T01, T06): `results/plots/trajectory_T01.png`, `trajectory_T06.png`.
+
+Previous IF-only snapshot (synthetic):
 
 | Turbine | Gearbox failure | Lead time (days) | Warning @ 30d | False alarm episodes |
 |---------|-----------------|------------------|---------------|----------------------|
@@ -106,9 +120,10 @@ Interpretation: pipeline works end-to-end; T06 slow-degradation case is detected
 data/raw/edp/*.csv
     → load_edp.py (per-turbine split + gearbox failures)
     → clean.py (features, healthy training mask, 90-day buffer)
-    → isolation_forest.py (StandardScaler + IF per turbine)
+    → isolation_forest.py / dense_autoencoder.py / lstm_autoencoder.py
     → protocol.py (threshold, persistence, lead time, false alarms)
-    → results/isolation_forest/metrics.json + *_scores.parquet
+    → results/{detector}/metrics.json + *_scores.parquet
+    → results/metrics.csv (benchmark table) + results/plots/trajectory_*.png
 ```
 
 ### Key config (`src/wind_turbine_anomaly/config.py`)
@@ -140,16 +155,14 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 
 ---
 
-## 8. What is next (Task 2+)
+## 8. What is next (Task 3+)
 
 1. **Obtain real EDP CSVs** — manual browser download after EDP login, or Zenodo CARE adapter
-2. **Re-run baseline** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
-3. **Threshold sweep** — document lead-time vs false-alarm trade-off curve (don't over-tune in Task 1)
-4. **Autoencoder baseline** — multivariate reconstruction error on same protocol
-5. **LSTM-AE** — sequence model on SCADA windows
-6. **Physics-residual hybrid** — model gearbox temp from power, ambient, load; ML on residuals
-7. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
-8. **WEEK_06_REFLECTION.md** — end-of-week reflection
+2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
+3. **Threshold sweep** — document lead-time vs false-alarm trade-off curve
+4. **Physics-residual hybrid** — model gearbox temp from power, ambient, load; ML on residuals (must beat `results/metrics.csv`)
+5. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
+6. **WEEK_06_REFLECTION.md** — end-of-week reflection
 
 Out of scope for Task 1: CWRU/NASA bearing datasets, SHAP (installed but unused), met-mast ambient temp.
 

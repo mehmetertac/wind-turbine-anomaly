@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""Run Isolation Forest baseline on EDP data and export metrics."""
+"""Run dense autoencoder baseline on EDP data and export metrics."""
 
 from __future__ import annotations
+
+import torch  # noqa: F401 — import before sklearn (Windows DLL order)
 
 import sys
 from pathlib import Path
@@ -11,7 +13,7 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from wind_turbine_anomaly.config import DATA_RAW
 from wind_turbine_anomaly.eval.baseline_runner import run_detector_baseline
-from wind_turbine_anomaly.models.isolation_forest import fit_isolation_forest
+from wind_turbine_anomaly.models.dense_autoencoder import fit_dense_autoencoder
 
 
 def main() -> int:
@@ -21,7 +23,7 @@ def main() -> int:
         return 1
 
     try:
-        run_detector_baseline("isolation_forest", fit_isolation_forest)
+        run_detector_baseline("dense_autoencoder", fit_dense_autoencoder)
     except FileNotFoundError as exc:
         print(exc)
         print("Run: python scripts/download_edp.py --check")

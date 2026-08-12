@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 
-import numpy as np
 import pandas as pd
 from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import StandardScaler
+
+from wind_turbine_anomaly.models.scoring import save_scores, threshold_from_training
 
 
 @dataclass
@@ -50,16 +50,9 @@ def fit_isolation_forest(
     )
 
 
-def save_scores(scores: pd.Series, path: Path | str) -> None:
-    """Persist anomaly score time series to parquet."""
-    path = Path(path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    scores.to_frame().to_parquet(path)
-
-
-def threshold_from_training(
-    train_scores: pd.Series,
-    percentile: float = 99.0,
-) -> float:
-    """Compute alarm threshold from healthy training score distribution."""
-    return float(np.percentile(train_scores.values, percentile))
+__all__ = [
+    "IsolationForestPipeline",
+    "fit_isolation_forest",
+    "save_scores",
+    "threshold_from_training",
+]

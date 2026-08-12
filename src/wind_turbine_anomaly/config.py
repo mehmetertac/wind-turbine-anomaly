@@ -90,6 +90,22 @@ DEFAULT_PERSISTENCE_SAMPLES = 6  # 1 hour at 10-min resolution
 DEFAULT_COOLDOWN_HOURS = 24
 DEFAULT_THRESHOLD_PERCENTILE = 99.0
 
+# Dense autoencoder hyperparameters
+AE_HIDDEN_DIMS: list[int] = [32, 16]
+AE_BOTTLENECK_DIM = 8
+AE_EPOCHS = 50
+AE_BATCH_SIZE = 256
+AE_LR = 1e-3
+AE_PATIENCE = 5
+AE_VAL_FRACTION = 0.1
+
+# LSTM autoencoder hyperparameters
+LSTM_WINDOW_SIZE = 144  # 24 h at 10-min resolution
+LSTM_HIDDEN_DIM = 32
+LSTM_LATENT_DIM = 16
+LSTM_MAX_TRAIN_WINDOWS = 32768  # subsample cap for CPU training time
+LSTM_EPOCHS = 15
+
 
 @dataclass(frozen=True)
 class GearboxFailure:
