@@ -1,0 +1,120 @@
+# Gearbox thermal normal-behavior model (Day 1)
+
+Physics-informed residual track — **Day 1 of 3**. This document describes the normal-behavior thermal model that predicts expected gearbox temperature from operating conditions. Days 2–3 will run ML on the residual signal.
+
+## Physical relationship
+
+Steady-state gearbox (oil/bearing) temperature is modeled as:
+
+```
+T_gear ≈ T_amb + α·P + β·RPM + γ·P² + ε
+```
+
+| Term | SCADA proxy | Rationale |
+|------|-------------|-----------|
+| T_amb | `Nac_Temp_Avg` | Nacelle interior tracks ambient plus self-heating; no met-mast ambient wired in yet |
+| P | `Grd_Prod_Pwr_Avg` | Gearbox losses scale with load/torque |
+| RPM | `Rtr_RPM_Avg` | Speed-dependent friction and windage |
+| P² | derived | Captures nonlinear I²R / load-squared heating without a complex thermal network |
+
+**Not available:** oil flow rate. EDP SCADA in this project has oil *temperature* only (`Gear_Oil_Temp_Avg`), not flow. Documented as a limitation; cooling effectiveness shifts are partially absorbed by the nacelle proxy.
+
+## Residual definition
+
+```
+residual = T_predicted − T_actual
+```
+
+- **Negative residual** → actual hotter than expected (degradation / failure signal)
+- **Positive residual** → actual colder than expected
+
+During healthy operation, residuals should be small, unbiased, and uncorrelated with drivers (power, RPM, nacelle temp).
+
+## Model implementation
+
+- **Per-turbine** models (each turbine has different baseline offsets)
+- **Targets:** `Gear_Oil_Temp_Avg` and `Gear_Bear_Temp_Avg` (separate models)
+- **Drivers:** power, rotor RPM, nacelle temperature
+- **Operating filter:** rows with power > 50 kW (idle/transient excluded)
+- **Training:** healthy period only — strictly before failure minus 90-day buffer (same as ML baselines)
+- **Validation split:** time-ordered 80/20 within healthy rows (no shuffle, no leakage)
+
+### Model selection
+
+Two candidates are fit on the training split and compared on held-out healthy validation:
+
+| Candidate | Form | Selection rule |
+|-----------|------|----------------|
+| `linear` (default) | Ridge on `[P, RPM, Nac, P²]` | Chosen unless GBM beats it by >10% RMSE |
+| `gbm` | `GradientBoostingRegressor(max_depth=3, n_estimators=100)` | Used only when validation RMSE improves enough |
+
+On synthetic EDP, **linear** was selected for all turbines (validation RMSE ~0.25°C oil, ~0.30°C bearing).
+
+### Validation checks
+
+Held-out healthy validation must pass:
+
+| Check | Criterion |
+|-------|-----------|
+| Small | RMSE, MAE, R² reported |
+| Unbiased | \|mean(residual)\| < 0.5°C |
+| Structureless vs drivers | \|r(residual, driver)\| < 0.1 for each driver |
+| Structureless vs time | \|linear trend\| < 0.01°C/day |
+
+Warnings are logged if checks fail; residuals are still emitted for exploration.
+
+## How to run
+
+```bash
+# Synthetic data (if EDP portal unavailable)
+python scripts/generate_synthetic_edp.py --force
+
+# Fit thermal models, validate, write residuals + plots
+python scripts/run_gearbox_thermal.py
+```
+
+Options: `--raw-dir`, `--buffer-days`, `--lookback-days`.
+
+## Outputs
+
+Under `results/physics_thermal/` (gitignored):
+
+| File | Content |
+|------|---------|
+| `{turbine}_oil_residuals.parquet` | actual, predicted, residual (oil) |
+| `{turbine}_bear_residuals.parquet` | actual, predicted, residual (bearing) |
+| `{turbine}_{oil\|bear}_validation.json` | metrics, model choice, coefficients |
+| `summary.json` | aggregate across turbines |
+
+Plots (failure turbines): `results/plots/residual_{T01,T06}_{oil,bear}.png`
+
+## Synthetic validation results
+
+Before known gearbox failures, residuals show clear negative drift (hotter than expected):
+
+| Turbine | Target | 90d early mean | 90d late mean | Drift |
+|---------|--------|----------------|---------------|-------|
+| T01 | oil | −0.02°C | −2.40°C | −2.38°C |
+| T01 | bear | −0.01°C | −2.77°C | −2.76°C |
+| T06 | oil | −0.15°C | −3.66°C | −3.51°C |
+| T06 | bear | −0.18°C | −4.23°C | −4.04°C |
+
+Healthy turbines (T07, T11) show no comparable pre-failure drift — residuals stay near zero on validation.
+
+This drift is the signal raw-temperature detectors struggle to isolate from operating-point changes (power swings, seasonal ambient).
+
+## Code locations
+
+| Component | Path |
+|-----------|------|
+| Config constants | `src/wind_turbine_anomaly/config.py` |
+| Thermal model | `src/wind_turbine_anomaly/models/gearbox_thermal.py` |
+| CLI | `scripts/run_gearbox_thermal.py` |
+| Residual plots | `src/wind_turbine_anomaly/eval/plots.py` |
+| Tests | `tests/test_gearbox_thermal.py` |
+
+## Next (Days 2–3)
+
+- Run ML detector (CUSUM, IF, etc.) on residual streams
+- Plug into rolling-origin eval protocol; compare lead time vs `results/metrics.csv`
+- Optional: met-mast ambient temperature instead of nacelle proxy

@@ -26,6 +26,21 @@ FEATURE_COLUMNS: list[str] = [
 POWER_COLUMN = "Grd_Prod_Pwr_Avg"
 MIN_POWER_KW = 0.0  # set > 0 to filter idle periods
 
+# Gearbox thermal normal-behavior model (physics-residual Day 1)
+THERMAL_TARGET_COLUMNS: list[str] = [
+    "Gear_Oil_Temp_Avg",
+    "Gear_Bear_Temp_Avg",
+]
+THERMAL_DRIVER_COLUMNS: list[str] = [
+    POWER_COLUMN,
+    "Rtr_RPM_Avg",
+    "Nac_Temp_Avg",
+]
+THERMAL_MIN_POWER_KW = 50.0
+THERMAL_TRAIN_FRACTION = 0.8
+THERMAL_GBM_RMSE_IMPROVEMENT = 0.10  # pick GBM only if RMSE drops by >10%
+THERMAL_RESULTS_DIR = RESULTS_DIR / "physics_thermal"
+
 # Filename aliases: canonical name -> accepted on-disk names
 SIGNAL_FILE_ALIASES: dict[str, list[str]] = {
     "signals_2016": [

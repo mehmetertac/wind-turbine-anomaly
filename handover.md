@@ -12,7 +12,7 @@
 Predict **gearbox failures N days ahead** on wind-turbine SCADA. Compare:
 
 1. **Pure ML** — Isolation Forest, dense autoencoder, LSTM-AE (all three implemented)
-2. **Physics-residual hybrid** — expected gearbox temp from power/ambient/load; detect residual regime shifts (not started)
+2. **Physics-residual hybrid** — expected gearbox temp from power/ambient/load; detect residual regime shifts (**Day 1 done**: thermal model + residuals)
 
 Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_REFLECTION.md`.
 
@@ -35,6 +35,7 @@ Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_
 | CLI: synthetic data | `scripts/generate_synthetic_edp.py` | Done |
 | CLI: baseline run | `scripts/run_if_baseline.py` | Done |
 | CLI: all ML baselines | `scripts/run_all_ml_baselines.py` | Done |
+| **Gearbox thermal model (Day 1)** | `models/gearbox_thermal.py`, `scripts/run_gearbox_thermal.py` | Done |
 | Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done |
 | Unit tests | `tests/` (26 tests) | Passing |
 | Pre-commit hook | `.pre-commit-config.yaml` | Runs `pytest -q` |
@@ -84,6 +85,7 @@ python scripts/download_edp.py --check
 pytest -q
 python scripts/run_if_baseline.py
 python scripts/run_all_ml_baselines.py   # IF + AEs + metrics.csv + trajectory plots
+python scripts/run_gearbox_thermal.py    # physics-residual Day 1: thermal model + residuals
 jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 ```
 
@@ -150,6 +152,7 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 | [AGENT.md](AGENT.md) | Agent/contributor rules (tests, doc updates before push) |
 | [data/README.md](data/README.md) | Data acquisition (EDP, Mendeley, synthetic) |
 | [docs/DATA.md](docs/DATA.md) | Channels, turbines, failure events |
+| [docs/PHYSICS_THERMAL.md](docs/PHYSICS_THERMAL.md) | Gearbox thermal model, residuals (Day 1) |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Rolling-origin protocol |
 | **handover.md** (this file) | Session handover |
 
@@ -160,7 +163,7 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 1. **Obtain real EDP CSVs** — manual browser download after EDP login, or Zenodo CARE adapter
 2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
 3. **Threshold sweep** — document lead-time vs false-alarm trade-off curve
-4. **Physics-residual hybrid** — model gearbox temp from power, ambient, load; ML on residuals (must beat `results/metrics.csv`)
+4. **Physics-residual hybrid Days 2–3** — ML detector on residual streams; must beat `results/metrics.csv` (Day 1 thermal model done — see [docs/PHYSICS_THERMAL.md](docs/PHYSICS_THERMAL.md))
 5. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
 6. **WEEK_06_REFLECTION.md** — end-of-week reflection
 
@@ -194,4 +197,4 @@ Per [AGENT.md](AGENT.md): update docs before every push; keep files under 1,000 
 ## 11. Contact / context
 
 - **12-week plan:** Week focused on gearbox anomaly detection with rolling-origin evaluation and maintenance-framed metrics
-- **Recruiter narrative:** Hybrid physics + ML should beat pure ML on lead time at acceptable false-alarm rate — **not yet demonstrated** (IF baseline only, on synthetic data so far)
+- **Recruiter narrative:** Hybrid physics + ML should beat pure ML on lead time at acceptable false-alarm rate — **Day 1 thermal residuals show clear pre-failure drift on synthetic data**; ML-on-residuals detector not yet built
