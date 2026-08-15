@@ -15,6 +15,7 @@ from wind_turbine_anomaly.config import (
     DEFAULT_HORIZON_DAYS,
     DEFAULT_THRESHOLD_PERCENTILE,
     FEATURE_COLUMNS,
+    MIN_POWER_KW,
     RESULTS_DIR,
 )
 from wind_turbine_anomaly.data.clean import (
@@ -45,6 +46,7 @@ def run_detector_baseline(
     buffer_days: int = DEFAULT_BUFFER_DAYS,
     feature_columns: list[str] | None = None,
     threshold_percentile: float = DEFAULT_THRESHOLD_PERCENTILE,
+    min_power_kw: float = MIN_POWER_KW,
 ) -> dict[str, Any]:
     """
     Run rolling-origin baseline for one detector across all turbines.
@@ -61,7 +63,7 @@ def run_detector_baseline(
     thresholds: dict[str, float] = {}
 
     for turbine_id, raw_df in sorted(turbines.items()):
-        df = clean_turbine_df(raw_df)
+        df = clean_turbine_df(raw_df, min_power_kw=min_power_kw)
         failure = get_failure_for_turbine(turbine_id, failures)
         train_mask = healthy_training_mask(df.index, failure, buffer_days)
         train_df = df.loc[train_mask]

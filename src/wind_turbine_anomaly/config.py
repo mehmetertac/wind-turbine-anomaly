@@ -41,6 +41,12 @@ THERMAL_TRAIN_FRACTION = 0.8
 THERMAL_GBM_RMSE_IMPROVEMENT = 0.10  # pick GBM only if RMSE drops by >10%
 THERMAL_RESULTS_DIR = RESULTS_DIR / "physics_thermal"
 
+# Physics-residual hybrid detector (Days 2–3)
+PHYSICS_HYBRID_DETECTOR = "physics_hybrid"
+RESIDUAL_WINDOW_SIZE = 6
+RESIDUAL_EWMA_SPAN = 36
+RESIDUAL_ROLLING_WINDOWS: list[int] = [6, 36, 144]
+
 # Filename aliases: canonical name -> accepted on-disk names
 SIGNAL_FILE_ALIASES: dict[str, list[str]] = {
     "signals_2016": [

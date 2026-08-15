@@ -85,13 +85,20 @@ Per-detector metrics and scores:
 - `results/isolation_forest/metrics.json` + `{turbine}_scores.parquet`
 - `results/dense_autoencoder/metrics.json` + `{turbine}_scores.parquet`
 - `results/lstm_autoencoder/metrics.json` + `{turbine}_scores.parquet`
+- `results/physics_hybrid/metrics.json` + `{turbine}_scores.parquet`
 
-Consolidated pure-ML benchmark (lead time vs false-alarm rate):
+Consolidated benchmark (lead time vs false-alarm rate):
 
-- `results/metrics.csv` — one row per detector; hybrid must beat this table
+- `results/metrics.csv` — one row per detector (pure ML + `physics_hybrid`)
 - `results/metrics_by_turbine.csv` — per-turbine drill-down
 
-Score trajectory plots (T01, T06, all three detectors):
+Hybrid vs pure ML comparison:
+
+- `results/hybrid_vs_ml_summary.json` — side-by-side lead times and false-alarm deltas
+- `results/hybrid_vs_ml_regime.json` — false alarms by operating regime (high load, hot ambient)
+- `results/plots/hybrid_vs_ml_comparison.png` — grouped bar charts
+
+Score trajectory plots (T01, T06, all detectors):
 
 - `results/plots/trajectory_T01.png`
 - `results/plots/trajectory_T06.png`

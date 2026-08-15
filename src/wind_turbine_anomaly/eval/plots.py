@@ -1,14 +1,21 @@
-"""Score trajectory plots comparing pure-ML detectors."""
+"""Score trajectory plots comparing pure-ML and physics-hybrid detectors."""
 
 from __future__ import annotations
 
+import json
 from datetime import timedelta
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
-from wind_turbine_anomaly.config import RESULTS_DIR
+from wind_turbine_anomaly.config import PHYSICS_HYBRID_DETECTOR, RESULTS_DIR
+from wind_turbine_anomaly.eval.hybrid_comparison import (
+    PURE_ML_DETECTORS,
+    analyze_regime_false_alarms,
+    build_hybrid_vs_ml_summary,
+)
 from wind_turbine_anomaly.eval.protocol import detect_alarm_episodes
 from wind_turbine_anomaly.utils import to_utc
 
@@ -212,4 +219,95 @@ def plot_gearbox_residual_trajectories(
     out_path.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_path, dpi=150, bbox_inches="tight")
     plt.close(fig)
+    return out_path
+
+
+def plot_hybrid_vs_ml_comparison(
+    raw_dir: Path | None = None,
+    results_dir: Path = RESULTS_DIR,
+    out_path: Path | None = None,
+) -> Path:
+    """
+    Grouped bar chart: lead time and false alarms by detector;
+    stacked regime breakdown for false alarms.
+    """
+    from wind_turbine_anomaly.config import DATA_RAW
+
+    raw_dir = raw_dir or DATA_RAW
+    summary = build_hybrid_vs_ml_summary(results_dir=results_dir)
+    regime = analyze_regime_false_alarms(raw_dir=raw_dir, results_dir=results_dir)
+
+    detectors = PURE_ML_DETECTORS + [PHYSICS_HYBRID_DETECTOR]
+    lead_t01 = []
+    lead_t06 = []
+    false_rates = []
+    for det in detectors:
+        metrics_path = results_dir / det / "metrics.json"
+        if not metrics_path.exists():
+            lead_t01.append(0.0)
+            lead_t06.append(0.0)
+            false_rates.append(0.0)
+            continue
+        metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+        by_turbine = {t["turbine_id"]: t for t in metrics.get("turbines", [])}
+        lead_t01.append(by_turbine.get("T01", {}).get("lead_time_days") or 0.0)
+        lead_t06.append(by_turbine.get("T06", {}).get("lead_time_days") or 0.0)
+        false_rates.append(metrics.get("false_alarms_per_turbine_year") or 0.0)
+
+    fig, axes = plt.subplots(1, 3, figsize=(16, 5))
+    x = np.arange(len(detectors))
+    width = 0.35
+
+    ax0 = axes[0]
+    ax0.bar(x - width / 2, lead_t01, width, label="T01")
+    ax0.bar(x + width / 2, lead_t06, width, label="T06")
+    ax0.set_xticks(x)
+    ax0.set_xticklabels(detectors, rotation=25, ha="right")
+    ax0.set_ylabel("Lead time (days)")
+    ax0.set_title("Pre-failure lead time")
+    ax0.legend()
+    ax0.grid(True, alpha=0.3, axis="y")
+
+    ax1 = axes[1]
+    ax1.bar(x, false_rates, color="tab:orange", alpha=0.85)
+    ax1.set_xticks(x)
+    ax1.set_xticklabels(detectors, rotation=25, ha="right")
+    ax1.set_ylabel("False alarms / turbine-year")
+    ax1.set_title("Aggregate false-alarm rate")
+    ax1.grid(True, alpha=0.3, axis="y")
+
+    ax2 = axes[2]
+    regime_labels = ["high_load", "hot_ambient", "high_load_and_hot_ambient", "normal"]
+    bottom = np.zeros(len(detectors))
+    colors = ["tab:red", "tab:purple", "tab:brown", "tab:gray"]
+    for label, color in zip(regime_labels, colors):
+        counts = [
+            regime["detectors"].get(det, {}).get("by_regime", {}).get(label, 0)
+            for det in detectors
+        ]
+        ax2.bar(x, counts, bottom=bottom, label=label, color=color, alpha=0.85)
+        bottom = bottom + np.array(counts, dtype=float)
+    ax2.set_xticks(x)
+    ax2.set_xticklabels(detectors, rotation=25, ha="right")
+    ax2.set_ylabel("False alarm episodes")
+    ax2.set_title("False alarms by operating regime")
+    ax2.legend(fontsize=7, loc="upper right")
+    ax2.grid(True, alpha=0.3, axis="y")
+
+    hybrid_wins = summary.get("false_alarms_per_turbine_year", {}).get(
+        "hybrid_wins_false_alarms", False
+    )
+    fig.suptitle(
+        f"Hybrid vs pure ML — hybrid wins false alarms: {hybrid_wins}",
+        fontsize=11,
+    )
+    fig.tight_layout()
+
+    if out_path is None:
+        out_path = results_dir / "plots" / "hybrid_vs_ml_comparison.png"
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Hybrid comparison plot written to {out_path}")
     return out_path

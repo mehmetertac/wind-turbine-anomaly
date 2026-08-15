@@ -1,6 +1,6 @@
-# Gearbox thermal normal-behavior model (Day 1)
+# Gearbox thermal normal-behavior model (Days 1–3)
 
-Physics-informed residual track — **Day 1 of 3**. This document describes the normal-behavior thermal model that predicts expected gearbox temperature from operating conditions. Days 2–3 will run ML on the residual signal.
+Physics-informed residual track. Day 1 builds the normal-behavior thermal model; Days 2–3 run ML on the residual signal and benchmark against pure ML.
 
 ## Physical relationship
 
@@ -109,12 +109,51 @@ This drift is the signal raw-temperature detectors struggle to isolate from oper
 |-----------|------|
 | Config constants | `src/wind_turbine_anomaly/config.py` |
 | Thermal model | `src/wind_turbine_anomaly/models/gearbox_thermal.py` |
-| CLI | `scripts/run_gearbox_thermal.py` |
+| Residual features | `src/wind_turbine_anomaly/models/residual_features.py` |
+| Physics hybrid detector | `src/wind_turbine_anomaly/models/physics_hybrid.py` |
+| Hybrid comparison | `src/wind_turbine_anomaly/eval/hybrid_comparison.py` |
+| CLI (Day 1) | `scripts/run_gearbox_thermal.py` |
+| CLI (hybrid baseline) | `scripts/run_physics_hybrid_baseline.py` |
 | Residual plots | `src/wind_turbine_anomaly/eval/plots.py` |
-| Tests | `tests/test_gearbox_thermal.py` |
+| Tests | `tests/test_gearbox_thermal.py`, `tests/test_physics_hybrid.py` |
 
-## Next (Days 2–3)
+## Days 2–3: ML on residuals (`physics_hybrid`)
 
-- Run ML detector (CUSUM, IF, etc.) on residual streams
-- Plug into rolling-origin eval protocol; compare lead time vs `results/metrics.csv`
-- Optional: met-mast ambient temperature instead of nacelle proxy
+The hybrid detector strips operating-point variance with the thermal model, then runs **Isolation Forest** on residual-window features:
+
+| Feature group | Content |
+|---------------|---------|
+| Point degradation | `-residual` for oil and bearing (negative residual = hotter than expected) |
+| EWMA | ~6h smoothed degradation signal (control-chart style) |
+| Rolling stats | Mean and std at 1h / 6h / 24h windows |
+
+Training and scoring use the same rolling-origin protocol as pure ML (90-day buffer, 99th-percentile threshold, 6-sample persistence). Operating rows only (power > 50 kW).
+
+### How to run
+
+```bash
+python scripts/run_physics_hybrid_baseline.py
+# Or full benchmark (pure ML + hybrid + comparison):
+python scripts/run_all_ml_baselines.py
+python scripts/run_hybrid_comparison.py
+```
+
+### Outputs
+
+| File | Content |
+|------|---------|
+| `results/physics_hybrid/metrics.json` | Per-turbine lead time, false alarms |
+| `results/physics_hybrid/{turbine}_scores.parquet` | Anomaly score time series |
+| `results/metrics.csv` | Master table including `physics_hybrid` row |
+| `results/hybrid_vs_ml_summary.json` | Head-to-head lead time and false-alarm deltas |
+| `results/hybrid_vs_ml_regime.json` | False alarms tagged by high-load / hot-ambient regime |
+| `results/plots/hybrid_vs_ml_comparison.png` | Bar charts: lead time, false alarms, regime breakdown |
+
+### Expected hybrid advantage
+
+Pure ML on raw SCADA fires during benign high-load or hot-ambient periods because temperature rises with power and ambient. The physics model explains that variance; the residual stream isolates degradation drift. On synthetic data, expect **fewer false alarms** (especially in `high_load` / `hot_ambient` regimes) and **earlier or equal lead time** on T01/T06 vs best pure-ML detector.
+
+## Optional next steps
+
+- Met-mast ambient temperature instead of nacelle proxy
+- Threshold sweep for lead-time vs false-alarm trade-off curve
