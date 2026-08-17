@@ -311,3 +311,72 @@ def plot_hybrid_vs_ml_comparison(
     plt.close(fig)
     print(f"Hybrid comparison plot written to {out_path}")
     return out_path
+
+
+def plot_threshold_tradeoff(
+    sweep_df: pd.DataFrame,
+    hybrid_detector: str = PHYSICS_HYBRID_DETECTOR,
+    best_pure_ml_detector: str | None = None,
+    operating_pct: float = 99.0,
+    out_path: Path | None = None,
+    results_dir: Path = RESULTS_DIR,
+) -> Path:
+    """
+    Plot lead-time vs false-alarm trade-off for hybrid vs best pure ML.
+
+    X-axis: false alarms per turbine-year. Y-axis: median lead time (days).
+    """
+    from wind_turbine_anomaly.config import DEFAULT_THRESHOLD_PERCENTILE
+
+    operating_pct = operating_pct or DEFAULT_THRESHOLD_PERCENTILE
+    if best_pure_ml_detector is None:
+        from wind_turbine_anomaly.eval.threshold_sweep import pick_best_pure_ml_detector
+
+        best_pure_ml_detector = pick_best_pure_ml_detector(results_dir=results_dir)
+
+    fig, ax = plt.subplots(figsize=(10, 6))
+    series_specs = [
+        (hybrid_detector, "tab:blue", "Physics hybrid"),
+        (best_pure_ml_detector, "tab:orange", f"Best pure ML ({best_pure_ml_detector})"),
+    ]
+
+    for detector, color, label in series_specs:
+        det_df = sweep_df[sweep_df["detector"] == detector].sort_values(
+            "false_alarms_per_turbine_year"
+        )
+        if det_df.empty:
+            continue
+        x = det_df["false_alarms_per_turbine_year"].values
+        y = det_df["median_lead_time_days"].values
+        ax.plot(x, y, "o-", color=color, label=label, lw=1.5, markersize=5)
+
+        op_row = det_df[det_df["threshold_percentile"] == operating_pct]
+        if not op_row.empty:
+            ax.scatter(
+                op_row["false_alarms_per_turbine_year"],
+                op_row["median_lead_time_days"],
+                s=120,
+                color=color,
+                edgecolors="black",
+                linewidths=1.2,
+                zorder=5,
+                marker="*",
+            )
+
+    ax.set_xlabel("False alarms per turbine-year")
+    ax.set_ylabel("Median lead time on failure turbines (days)")
+    ax.set_title(
+        f"Threshold trade-off @ {operating_pct:g}th percentile marked with ★"
+    )
+    ax.legend(loc="best")
+    ax.grid(True, alpha=0.3)
+
+    fig.tight_layout()
+    if out_path is None:
+        out_path = results_dir / "plots" / "threshold_tradeoff.png"
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Threshold trade-off plot written to {out_path}")
+    return out_path

@@ -156,4 +156,43 @@ Pure ML on raw SCADA fires during benign high-load or hot-ambient periods becaus
 ## Optional next steps
 
 - Met-mast ambient temperature instead of nacelle proxy
-- Threshold sweep for lead-time vs false-alarm trade-off curve
+- Horizon sweep (7, 14, 30, 60, 90 days) for successful-warning reporting
+
+## N-days-ahead failure prediction framing
+
+The physics-residual track is not an outlier detector on raw temperature — it is a **failure-warning system** measured in days.
+
+### Physical precursor → alarm
+
+1. **Thermal model** predicts expected oil/bearing temperature from power, RPM, and nacelle proxy.
+2. **Negative residual drift** (actual hotter than expected) is the degradation signal — see synthetic validation table above (T01/T06 drift of −2 to −4°C before failure).
+3. **EWMA + rolling features** smooth the drift into a sustained anomaly score; **Isolation Forest** flags when the residual pattern departs from healthy training.
+4. **Alarm → failure gap** = lead time (days). **Successful warning @ N** = lead time ≥ N (default N = 30, aligned with Hack the Wind / Frontiers 2022 buffer).
+
+### Why physics helps the trade-off
+
+Pure ML on raw SCADA fires during benign high-load or hot-ambient periods because temperature rises with power and ambient. The thermal model explains that variance; the residual stream isolates degradation drift. Regime analysis in `results/hybrid_vs_ml_regime.json` quantifies false alarms during `high_load` / `hot_ambient` operating points — the regimes where raw-temperature detectors struggle most.
+
+At a lower threshold (more sensitive), the hybrid should add fewer spurious alarms than pure ML because operating-point variance is already stripped.
+
+### Headline claim and threshold sweep
+
+Run the full benchmark (includes sweep):
+
+```bash
+python scripts/run_all_ml_baselines.py
+# Or sweep only (requires baselines + train_scores parquets):
+python scripts/run_threshold_sweep.py
+```
+
+| Output | Content |
+|--------|---------|
+| `results/headline_claim.json` | Project headline: median lead time + false alarms/turbine-year @ 99th-percentile threshold |
+| `results/threshold_sweep.csv` | Full sweep grid for hybrid vs best pure ML |
+| `results/plots/threshold_tradeoff.png` | Lead time vs false-alarm trade-off curve (★ = default operating point) |
+
+Example headline (synthetic EDP, regenerate locally):
+
+> At the 99th-percentile threshold, physics_hybrid flags gearbox failures a median of **65 days** in advance at **8.5 false alarms per turbine-year**.
+
+Compare to best pure ML (LSTM-AE on synthetic): ~80 days median lead time at ~31 false alarms/turbine-year — hybrid trades some lead time for a much lower false-alarm rate. **Re-run on real EDP before publication.**

@@ -12,10 +12,18 @@ sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 import pandas as pd
 
-from wind_turbine_anomaly.config import DATA_RAW, PHYSICS_HYBRID_DETECTOR
+from wind_turbine_anomaly.config import DATA_RAW, PHYSICS_HYBRID_DETECTOR, RESULTS_DIR
 from wind_turbine_anomaly.eval.hybrid_comparison import write_hybrid_comparison
 from wind_turbine_anomaly.eval.metrics_table import write_metrics_csv
-from wind_turbine_anomaly.eval.plots import plot_all_failure_trajectories, plot_hybrid_vs_ml_comparison
+from wind_turbine_anomaly.eval.plots import (
+    plot_all_failure_trajectories,
+    plot_hybrid_vs_ml_comparison,
+    plot_threshold_tradeoff,
+)
+from wind_turbine_anomaly.eval.threshold_sweep import (
+    pick_best_pure_ml_detector,
+    write_threshold_sweep,
+)
 from wind_turbine_anomaly.utils import to_utc
 
 DETECTORS = [
@@ -60,6 +68,13 @@ def main() -> int:
     }
     plot_all_failure_trajectories(failure_turbines, DETECTORS)
     plot_hybrid_vs_ml_comparison(raw_dir=DATA_RAW)
+    _, _, sweep_df = write_threshold_sweep(raw_dir=DATA_RAW, results_dir=RESULTS_DIR)
+    best_ml = pick_best_pure_ml_detector(results_dir=RESULTS_DIR)
+    plot_threshold_tradeoff(
+        sweep_df,
+        best_pure_ml_detector=best_ml,
+        results_dir=RESULTS_DIR,
+    )
     return 0
 
 

@@ -110,6 +110,8 @@ DEFAULT_CONTAMINATION = 0.01
 DEFAULT_PERSISTENCE_SAMPLES = 6  # 1 hour at 10-min resolution
 DEFAULT_COOLDOWN_HOURS = 24
 DEFAULT_THRESHOLD_PERCENTILE = 99.0
+THRESHOLD_SWEEP_PERCENTILES: list[float] = [90, 92, 94, 95, 96, 97, 98, 99, 99.5]
+FAILURE_TURBINES: tuple[str, ...] = ("T01", "T06")
 
 # Dense autoencoder hyperparameters
 AE_HIDDEN_DIMS: list[int] = [32, 16]

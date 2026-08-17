@@ -3,7 +3,7 @@
 **Repo:** https://github.com/mehmetertac/wind-turbine-anomaly  
 **Branch:** `main`  
 **Last updated:** August 2026  
-**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol; Task 2 — dense + LSTM autoencoder baselines, benchmark table; Task 3 — physics-residual hybrid (Days 1–3)
+**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol; Task 2 — dense + LSTM autoencoder baselines, benchmark table; Task 3 — physics-residual hybrid (Days 1–3); **Week 6 — threshold sweep, headline claim, maintenance narrative, reflection**
 
 ---
 
@@ -38,8 +38,10 @@ Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_
 | **Gearbox thermal model (Day 1)** | `models/gearbox_thermal.py`, `scripts/run_gearbox_thermal.py` | Done |
 | **Physics hybrid detector (Days 2–3)** | `models/physics_hybrid.py`, `scripts/run_physics_hybrid_baseline.py` | Done |
 | **Hybrid vs ML comparison** | `eval/hybrid_comparison.py`, `scripts/run_hybrid_comparison.py` | Done |
+| **Threshold sweep + headline claim** | `eval/threshold_sweep.py`, `scripts/run_threshold_sweep.py` | Done |
+| **Week 6 reflection** | `WEEK_06_REFLECTION.md` | Done |
 | Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done |
-| Unit tests | `tests/` (26 tests) | Passing |
+| Unit tests | `tests/` (41+ tests) | Passing |
 | Pre-commit hook | `.pre-commit-config.yaml` | Runs `pytest -q` |
 
 ---
@@ -86,7 +88,8 @@ python scripts/generate_synthetic_edp.py --force   # synthetic
 python scripts/download_edp.py --check
 pytest -q
 python scripts/run_if_baseline.py
-python scripts/run_all_ml_baselines.py   # IF + AEs + physics_hybrid + metrics.csv + comparison plots
+python scripts/run_all_ml_baselines.py   # IF + AEs + physics_hybrid + metrics.csv + comparison + threshold sweep
+python scripts/run_threshold_sweep.py  # sweep only (requires baselines + train_scores parquets)
 python scripts/run_gearbox_thermal.py    # physics-residual Day 1: thermal model + residuals (exploratory)
 python scripts/run_physics_hybrid_baseline.py  # hybrid detector only
 python scripts/run_hybrid_comparison.py  # head-to-head analysis (requires all baselines)
@@ -97,26 +100,21 @@ jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
 
 ## 5. Latest baseline results (synthetic data)
 
-Run `python scripts/run_all_ml_baselines.py` to regenerate. Consolidated benchmark:
+Run `python scripts/run_all_ml_baselines.py` to regenerate.
 
-**`results/metrics.csv`** — one row per detector (pure ML + `physics_hybrid`) with T01/T06 lead times and aggregate false-alarm rate.
+**Headline claim** (`results/headline_claim.json`):
 
-Per-detector detail in `results/{isolation_forest,dense_autoencoder,lstm_autoencoder}/metrics.json`.
+> At the 99th-percentile threshold, physics_hybrid flags gearbox failures a median of **65 days** in advance at **8.5 false alarms per turbine-year** (synthetic EDP).
+
+Best pure ML at the same operating point: LSTM-AE — **80 days** median lead time at **31 false alarms/turbine-year**. Hybrid wins on false-alarm rate; LSTM-AE leads on median lead time on this synthetic run.
+
+**Trade-off curve:** `results/plots/threshold_tradeoff.png` — sweep grid in `results/threshold_sweep.csv`.
+
+Consolidated benchmark: **`results/metrics.csv`** — one row per detector with T01/T06 lead times and aggregate false-alarm rate.
 
 Score trajectory plots (T01, T06): `results/plots/trajectory_T01.png`, `trajectory_T06.png`.
 
-Previous IF-only snapshot (synthetic):
-
-| Turbine | Gearbox failure | Lead time (days) | Warning @ 30d | False alarm episodes |
-|---------|-----------------|------------------|---------------|----------------------|
-| T01 | 2016-07-18 pump | 18.3 | No | 261 |
-| T06 | 2017-10-17 bearing | 47.6 | Yes | 11 |
-| T07 | None | — | — | 0 |
-| T11 | None | — | — | 0 |
-
-**Aggregate false alarms / turbine-year:** ~106 (high — T01 drives this; threshold tuning not done for Task 1).
-
-Interpretation: pipeline works end-to-end; T06 slow-degradation case is detected with >30d lead. T01 short lead and high false-alarm rate are expected on synthetic + untuned IF. **Re-run on real EDP before drawing conclusions.**
+**Re-run on real EDP before drawing conclusions.**
 
 ---
 
@@ -128,8 +126,9 @@ data/raw/edp/*.csv
     → clean.py (features, healthy training mask, 90-day buffer)
     → isolation_forest.py / dense_autoencoder.py / lstm_autoencoder.py
     → protocol.py (threshold, persistence, lead time, false alarms)
-    → results/{detector}/metrics.json + *_scores.parquet
+    → results/{detector}/metrics.json + {turbine}_scores.parquet + {turbine}_train_scores.parquet
     → results/metrics.csv (benchmark table) + results/plots/trajectory_*.png
+    → results/threshold_sweep.csv + results/headline_claim.json + results/plots/threshold_tradeoff.png
 ```
 
 ### Key config (`src/wind_turbine_anomaly/config.py`)
@@ -157,7 +156,8 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 | [data/README.md](data/README.md) | Data acquisition (EDP, Mendeley, synthetic) |
 | [docs/DATA.md](docs/DATA.md) | Channels, turbines, failure events |
 | [docs/PHYSICS_THERMAL.md](docs/PHYSICS_THERMAL.md) | Gearbox thermal model, residuals (Day 1) |
-| [docs/EVALUATION.md](docs/EVALUATION.md) | Rolling-origin protocol |
+| [docs/EVALUATION.md](docs/EVALUATION.md) | Rolling-origin protocol + threshold sweep |
+| [WEEK_06_REFLECTION.md](WEEK_06_REFLECTION.md) | Week 6 build reflection |
 | **handover.md** (this file) | Session handover |
 
 ---
@@ -166,9 +166,8 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 
 1. **Obtain real EDP CSVs** — manual browser download after EDP login, or Zenodo CARE adapter
 2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
-3. **Threshold sweep** — document lead-time vs false-alarm trade-off curve
-4. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
-5. **WEEK_06_REFLECTION.md** — end-of-week reflection
+3. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
+4. **Cost-optimal threshold picker** — translate trade-off curve into €/alarm maintenance economics
 
 Out of scope for Task 1: CWRU/NASA bearing datasets, SHAP (installed but unused), met-mast ambient temp.
 
@@ -200,4 +199,4 @@ Per [AGENT.md](AGENT.md): update docs before every push; keep files under 1,000 
 ## 11. Contact / context
 
 - **12-week plan:** Week focused on gearbox anomaly detection with rolling-origin evaluation and maintenance-framed metrics
-- **Recruiter narrative:** Hybrid physics + ML beats pure ML on lead time at lower false-alarm rate — **`physics_hybrid` row in `results/metrics.csv`**; regime analysis in `results/hybrid_vs_ml_regime.json` quantifies wins during high-load / hot-ambient periods
+- **Recruiter narrative:** At the 99th-percentile operating point on synthetic EDP, physics_hybrid delivers **8.5 false alarms/turbine-year** vs **31** for best pure ML (LSTM-AE), with **65 days** median lead time vs **80 days**. Trade-off curve in `results/plots/threshold_tradeoff.png`; regime analysis in `results/hybrid_vs_ml_regime.json` quantifies fewer false alarms during high-load / hot-ambient periods.

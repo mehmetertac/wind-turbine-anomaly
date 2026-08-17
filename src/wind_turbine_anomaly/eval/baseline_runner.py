@@ -75,6 +75,7 @@ def run_detector_baseline(
         print(f"  {turbine_id}: fitting...", flush=True)
         pipeline = fit_fn(train_df, feature_columns)
         train_scores = pipeline.score(train_df)
+        save_scores(train_scores, out_dir / f"{turbine_id}_train_scores.parquet")
         threshold = threshold_from_training(
             train_scores, percentile=threshold_percentile
         )
@@ -104,6 +105,7 @@ def run_detector_baseline(
     metrics = results_to_dict(eval_results, horizon_days)
     metrics["detector"] = detector_name
     metrics["thresholds"] = thresholds
+    metrics["threshold_percentile"] = threshold_percentile
     metrics_path = out_dir / "metrics.json"
     metrics_path.write_text(json.dumps(metrics, indent=2), encoding="utf-8")
     print(f"Metrics written to {metrics_path}")
