@@ -18,6 +18,7 @@ from wind_turbine_anomaly.config import (
     POWER_COLUMN,
     THERMAL_DRIVER_COLUMNS,
     THERMAL_GBM_RMSE_IMPROVEMENT,
+    THERMAL_SEASONAL_TERMS,
     THERMAL_TRAIN_FRACTION,
 )
 
@@ -39,6 +40,7 @@ class GearboxThermalModel:
     driver_columns: list[str]
     target_column: str
     feature_names: list[str] | None = None
+    seasonal_terms: bool = False
 
     def predict(self, X: pd.DataFrame) -> pd.Series:
         """Return predicted temperature (°C)."""
@@ -76,8 +78,22 @@ class GearboxThermalModel:
             power = drivers[POWER_COLUMN].values.reshape(-1, 1)
             rpm = drivers["Rtr_RPM_Avg"].values.reshape(-1, 1)
             nac = drivers["Nac_Temp_Avg"].values.reshape(-1, 1)
-            return np.hstack([power, rpm, nac, power**2])
+            parts = [power, rpm, nac, power**2]
+            if self.seasonal_terms:
+                month = np.asarray(X.index.month, dtype=float)
+                month_rad = 2.0 * np.pi * month / 12.0
+                parts.extend(
+                    [np.sin(month_rad).reshape(-1, 1), np.cos(month_rad).reshape(-1, 1)]
+                )
+            return np.hstack(parts)
         return drivers.values
+
+
+def _linear_feature_names(seasonal_terms: bool) -> list[str]:
+    names = [POWER_COLUMN, "Rtr_RPM_Avg", "Nac_Temp_Avg", f"{POWER_COLUMN}_sq"]
+    if seasonal_terms:
+        names.extend(["month_sin", "month_cos"])
+    return names
 
 
 def healthy_train_validate_split(
@@ -95,28 +111,29 @@ def healthy_train_validate_split(
     return train_df, val_df
 
 
-def _fit_linear(train_df: pd.DataFrame, target_column: str, driver_columns: list[str]) -> GearboxThermalModel:
-    power = train_df[POWER_COLUMN].values.reshape(-1, 1)
-    rpm = train_df["Rtr_RPM_Avg"].values.reshape(-1, 1)
-    nac = train_df["Nac_Temp_Avg"].values.reshape(-1, 1)
-    X_train = np.hstack([power, rpm, nac, power**2])
-    y_train = train_df[target_column].values
-
-    pipeline: Pipeline = Pipeline(
-        [
-            ("scaler", StandardScaler()),
-            ("ridge", Ridge(alpha=1.0)),
-        ]
-    )
-    pipeline.fit(X_train, y_train)
-    feature_names = [POWER_COLUMN, "Rtr_RPM_Avg", "Nac_Temp_Avg", f"{POWER_COLUMN}_sq"]
-    return GearboxThermalModel(
-        model=pipeline,
+def _fit_linear(
+    train_df: pd.DataFrame,
+    target_column: str,
+    driver_columns: list[str],
+    seasonal_terms: bool = THERMAL_SEASONAL_TERMS,
+) -> GearboxThermalModel:
+    model = GearboxThermalModel(
+        model=Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                ("ridge", Ridge(alpha=1.0)),
+            ]
+        ),
         model_kind="linear",
         driver_columns=driver_columns,
         target_column=target_column,
-        feature_names=feature_names,
+        feature_names=_linear_feature_names(seasonal_terms),
+        seasonal_terms=seasonal_terms,
     )
+    X_train = model._build_features(train_df)
+    y_train = train_df[target_column].values
+    model.model.fit(X_train, y_train)
+    return model
 
 
 def _fit_gbm(train_df: pd.DataFrame, target_column: str, driver_columns: list[str]) -> GearboxThermalModel:
@@ -150,6 +167,7 @@ def fit_gearbox_thermal(
     train_df: pd.DataFrame,
     target_column: str,
     driver_columns: list[str] | None = None,
+    seasonal_terms: bool = THERMAL_SEASONAL_TERMS,
 ) -> GearboxThermalModel:
     """
     Fit normal-behavior thermal model, selecting linear vs GBM on validation RMSE.
@@ -157,8 +175,7 @@ def fit_gearbox_thermal(
     Expects train_df to be the time-ordered training portion of healthy data.
     """
     driver_columns = driver_columns or THERMAL_DRIVER_COLUMNS
-    linear_model = _fit_linear(train_df, target_column, driver_columns)
-    return linear_model
+    return _fit_linear(train_df, target_column, driver_columns, seasonal_terms)
 
 
 def fit_gearbox_thermal_with_selection(
@@ -167,6 +184,7 @@ def fit_gearbox_thermal_with_selection(
     driver_columns: list[str] | None = None,
     train_fraction: float = THERMAL_TRAIN_FRACTION,
     gbm_improvement: float = THERMAL_GBM_RMSE_IMPROVEMENT,
+    seasonal_terms: bool = THERMAL_SEASONAL_TERMS,
 ) -> tuple[GearboxThermalModel, pd.DataFrame, pd.DataFrame, dict[str, Any]]:
     """
     Fit on healthy data with time-ordered train/val split and model selection.
@@ -177,7 +195,9 @@ def fit_gearbox_thermal_with_selection(
     driver_columns = driver_columns or THERMAL_DRIVER_COLUMNS
     train_df, val_df = healthy_train_validate_split(healthy_df, train_fraction)
 
-    linear_model = _fit_linear(train_df, target_column, driver_columns)
+    linear_model = _fit_linear(
+        train_df, target_column, driver_columns, seasonal_terms=seasonal_terms
+    )
     linear_rmse = _validation_rmse(linear_model, val_df)
 
     gbm_model = _fit_gbm(train_df, target_column, driver_columns)
@@ -192,7 +212,9 @@ def fit_gearbox_thermal_with_selection(
     if chosen_kind == "gbm":
         final_model = _fit_gbm(healthy_df, target_column, driver_columns)
     else:
-        final_model = _fit_linear(healthy_df, target_column, driver_columns)
+        final_model = _fit_linear(
+            healthy_df, target_column, driver_columns, seasonal_terms=seasonal_terms
+        )
 
     selection_info = {
         "chosen_model": chosen_kind,
@@ -200,6 +222,7 @@ def fit_gearbox_thermal_with_selection(
         "gbm_val_rmse": gbm_rmse,
         "train_rows": len(train_df),
         "val_rows": len(val_df),
+        "seasonal_terms": seasonal_terms,
     }
     return final_model, train_df, val_df, selection_info
 

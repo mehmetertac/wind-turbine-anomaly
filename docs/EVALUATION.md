@@ -136,3 +136,58 @@ python scripts/run_threshold_sweep.py
 ```
 
 **Caveat:** Numbers on synthetic EDP validate the pipeline only. Obtain real EDP CSVs and re-run before comparing to published benchmarks (~21 d T01 / ~89 d T06 with CUSUM).
+
+## Robustness pass
+
+Formal validation that the physics hybrid generalizes across turbines and seasons without data leakage. Run after baselines and thermal models:
+
+```bash
+python scripts/run_gearbox_thermal.py
+python scripts/run_robustness_pass.py
+```
+
+### Checks
+
+| Check | What it validates |
+|-------|-------------------|
+| **Multi-turbine** | T01/T06 lead times and thermal validation; T07/T11 false-alarm rate and residual drift bounded |
+| **Seasonal residuals** | Thermal-model RMSE and mean bias per meteorological season (winter/summer/shoulder) on healthy validation |
+| **Leakage audit** | Training strictly before failure − buffer; threshold from train scores only; score window excludes training |
+
+Pass criteria (configurable in `config.py`):
+
+- Seasonal RMSE ratio `max/min < 1.5` across seasons
+- No season with \|mean residual\| > 0.5°C on healthy validation
+- All leakage assertions pass per turbine
+
+If seasonal check fails, the robustness CLI automatically retries with optional `month_sin` / `month_cos` features (`THERMAL_SEASONAL_TERMS`) and records before/after in `seasonal_refit.json`.
+
+### Outputs
+
+| File | Content |
+|------|---------|
+| `results/robustness/robustness_summary.json` | Overall pass/fail |
+| `results/robustness/multi_turbine_summary.json` | Per-turbine hybrid + thermal checks |
+| `results/robustness/seasonal_residuals.json` | Seasonal RMSE and bias per turbine × target |
+| `results/robustness/leakage_audit.json` | Leakage assertions per turbine |
+| `results/robustness/seasonal_refit.json` | Before/after if seasonal terms applied |
+| `results/plots/seasonal_rmse_by_turbine.png` | Seasonal RMSE bar chart |
+
+Implementation: [`src/wind_turbine_anomaly/eval/robustness.py`](../src/wind_turbine_anomaly/eval/robustness.py).
+
+## Interpretability
+
+Thermal-model driver analysis and end-to-end failure annotation for the blog post:
+
+```bash
+python scripts/run_thermal_interpretability.py
+```
+
+| Output | Content |
+|--------|---------|
+| `results/interpretability/{turbine}_{oil\|bear}_drivers.json` | Ranked drivers (SHAP + coefficients) |
+| `results/interpretability/{turbine}_{oil\|bear}_shap_summary.png` | Mean \|SHAP\| bar chart |
+| `results/interpretability/case_study_T06.json` | First alarm, failure date, lead time |
+| `results/plots/case_study_T06.png` | Raw signals → residual → alarm timeline |
+
+Default case study: **T06 bearing wear-out** (flagship slow-drift case).

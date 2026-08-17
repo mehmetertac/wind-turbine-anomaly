@@ -39,8 +39,11 @@ Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_
 | **Physics hybrid detector (Days 2–3)** | `models/physics_hybrid.py`, `scripts/run_physics_hybrid_baseline.py` | Done |
 | **Hybrid vs ML comparison** | `eval/hybrid_comparison.py`, `scripts/run_hybrid_comparison.py` | Done |
 | **Threshold sweep + headline claim** | `eval/threshold_sweep.py`, `scripts/run_threshold_sweep.py` | Done |
+| **Robustness pass** | `eval/robustness.py`, `scripts/run_robustness_pass.py` | Done |
+| **Thermal interpretability + T06 case study** | `eval/thermal_interpretability.py`, `scripts/run_thermal_interpretability.py` | Done |
 | **Week 6 reflection** | `WEEK_06_REFLECTION.md` | Done |
 | Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done |
+| Bearing vibration notebook | `notebooks/02_bearing_vibration_cwru.ipynb` | Done (optional side-check) |
 | Unit tests | `tests/` (41+ tests) | Passing |
 | Pre-commit hook | `.pre-commit-config.yaml` | Runs `pytest -q` |
 
@@ -91,6 +94,8 @@ python scripts/run_if_baseline.py
 python scripts/run_all_ml_baselines.py   # IF + AEs + physics_hybrid + metrics.csv + comparison + threshold sweep
 python scripts/run_threshold_sweep.py  # sweep only (requires baselines + train_scores parquets)
 python scripts/run_gearbox_thermal.py    # physics-residual Day 1: thermal model + residuals (exploratory)
+python scripts/run_robustness_pass.py    # multi-turbine, seasonal, leakage audit
+python scripts/run_thermal_interpretability.py  # SHAP drivers + T06 case study
 python scripts/run_physics_hybrid_baseline.py  # hybrid detector only
 python scripts/run_hybrid_comparison.py  # head-to-head analysis (requires all baselines)
 jupyter notebook notebooks/01_eda_and_if_baseline.ipynb
@@ -166,10 +171,10 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 
 1. **Obtain real EDP CSVs** — manual browser download after EDP login, or Zenodo CARE adapter
 2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
-3. **Blog post** — "What an EE sees in turbine data that a data scientist misses"
+3. **Blog post** — use `results/interpretability/` and `case_study_T06.png` for "What an EE sees in turbine data that a data scientist misses"
 4. **Cost-optimal threshold picker** — translate trade-off curve into €/alarm maintenance economics
 
-Out of scope for Task 1: CWRU/NASA bearing datasets, SHAP (installed but unused), met-mast ambient temp.
+Previously out of scope, now implemented: SHAP/coefficient interpretability, robustness pass, optional CWRU bearing notebook.
 
 ---
 

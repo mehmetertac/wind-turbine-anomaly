@@ -380,3 +380,183 @@ def plot_threshold_tradeoff(
     plt.close(fig)
     print(f"Threshold trade-off plot written to {out_path}")
     return out_path
+
+
+def plot_failure_case_study(
+    turbine_id: str,
+    raw_dir: Path | None = None,
+    results_dir: Path = RESULTS_DIR,
+    detector: str = PHYSICS_HYBRID_DETECTOR,
+    lookback_days: int = 120,
+    buffer_days: int = 90,
+    out_path: Path | None = None,
+) -> Path:
+    """
+    End-to-end failure annotation: raw signals → residual → alarm → failure.
+
+    Default case: T06 bearing wear-out.
+    """
+    import json
+
+    from wind_turbine_anomaly.config import DATA_RAW, THERMAL_MIN_POWER_KW
+    from wind_turbine_anomaly.data.clean import (
+        clean_turbine_df,
+        get_failure_for_turbine,
+        healthy_training_mask,
+    )
+    from wind_turbine_anomaly.data.load_edp import load_edp_dataset
+    from wind_turbine_anomaly.eval.protocol import detect_alarm_episodes, evaluate_turbine
+    from wind_turbine_anomaly.models.gearbox_thermal import fit_gearbox_thermal_with_selection
+
+    raw_dir = raw_dir or DATA_RAW
+    turbines, failures = load_edp_dataset(raw_dir)
+    if turbine_id not in turbines:
+        raise ValueError(f"Unknown turbine: {turbine_id}")
+
+    raw_df = turbines[turbine_id]
+    df = clean_turbine_df(raw_df, min_power_kw=THERMAL_MIN_POWER_KW)
+    failure = get_failure_for_turbine(turbine_id, failures)
+    if failure is None:
+        raise ValueError(f"Turbine {turbine_id} has no logged failure")
+
+    failure_time = to_utc(failure.timestamp)
+    window_start = failure_time - timedelta(days=lookback_days)
+    window_df = df.loc[window_start:failure_time]
+
+    train_mask = healthy_training_mask(df.index, failure, buffer_days)
+    train_df = df.loc[train_mask]
+    bear_model, _, _, _ = fit_gearbox_thermal_with_selection(
+        train_df, "Gear_Bear_Temp_Avg"
+    )
+    residual_frame = bear_model.residual_frame(window_df)
+
+    score_path = results_dir / detector / f"{turbine_id}_scores.parquet"
+    metrics_path = results_dir / detector / "metrics.json"
+    scores = pd.read_parquet(score_path).iloc[:, 0]
+    scores.index = pd.to_datetime(scores.index, utc=True)
+    metrics = json.loads(metrics_path.read_text(encoding="utf-8"))
+    threshold = float(metrics["thresholds"][turbine_id])
+    score_window = scores.loc[window_start:failure_time]
+    score_start = train_df.index[-1] if not train_df.empty else None
+    eval_result = evaluate_turbine(
+        turbine_id,
+        scores,
+        threshold=threshold,
+        failure=failure,
+        score_start=score_start,
+    )
+    episodes = detect_alarm_episodes(score_window, threshold=threshold)
+    pre_failure = [ep for ep in episodes if ep.start < failure_time]
+    first_alarm = min(pre_failure, key=lambda ep: ep.start) if pre_failure else None
+
+    days_before = (window_df.index - failure_time).total_seconds() / 86400.0
+
+    fig, axes = plt.subplots(4, 1, figsize=(14, 14), sharex=True)
+
+    ax0 = axes[0]
+    ax0.plot(days_before, window_df["Grd_Prod_Pwr_Avg"], lw=0.7, label="Power (kW)", color="tab:green")
+    ax0.plot(
+        days_before,
+        window_df["Gear_Bear_Temp_Avg"],
+        lw=0.7,
+        label="Bear temp (°C)",
+        color="tab:red",
+    )
+    ax0.plot(
+        days_before,
+        window_df["Nac_Temp_Avg"],
+        lw=0.7,
+        label="Nacelle temp (°C)",
+        color="tab:purple",
+    )
+    ax0.set_ylabel("Raw signals")
+    ax0.set_title(f"{turbine_id} — raw SCADA ({lookback_days}d before failure)")
+    ax0.legend(loc="upper left", fontsize=8)
+    ax0.grid(True, alpha=0.3)
+
+    ax1 = axes[1]
+    ax1.plot(days_before, residual_frame["actual"], lw=0.7, label="Actual bear temp")
+    ax1.plot(days_before, residual_frame["predicted"], lw=0.7, label="Predicted")
+    ax1.set_ylabel("Temperature (°C)")
+    ax1.set_title("Bearing: actual vs physics-expected")
+    ax1.legend(loc="upper left", fontsize=8)
+    ax1.grid(True, alpha=0.3)
+
+    ax1b = ax1.twinx()
+    ax1b.plot(
+        days_before,
+        residual_frame["residual"],
+        lw=0.6,
+        color="tab:orange",
+        alpha=0.8,
+        label="Residual",
+    )
+    ax1b.set_ylabel("Residual (°C)", color="tab:orange")
+    ax1b.axhline(0.0, color="black", ls="--", lw=0.6)
+
+    norm_scores = score_window / threshold if threshold > 0 else score_window
+    score_days = (score_window.index - failure_time).total_seconds() / 86400.0
+    ax2 = axes[2]
+    ax2.plot(score_days, norm_scores.values, lw=0.8, color="tab:blue")
+    ax2.axhline(1.0, color="red", ls="--", lw=0.8, label="Threshold")
+    if first_alarm is not None:
+        alarm_day = (first_alarm.start - failure_time).total_seconds() / 86400.0
+        ax2.axvline(alarm_day, color="orange", ls=":", lw=1.2, label="First alarm")
+    ax2.axvline(0.0, color="black", ls="-", lw=1.0, label="Failure")
+    ax2.set_ylabel("Score / threshold")
+    ax2.set_title(f"Physics hybrid anomaly score ({detector})")
+    ax2.legend(loc="upper left", fontsize=8)
+    ax2.grid(True, alpha=0.3)
+
+    ax3 = axes[3]
+    ax3.set_xlim(-lookback_days, 5)
+    ax3.set_ylim(0, 1)
+    ax3.set_yticks([])
+    bar_y = 0.4
+    bar_h = 0.2
+    if first_alarm is not None:
+        alarm_day = (first_alarm.start - failure_time).total_seconds() / 86400.0
+        ax3.barh(
+            bar_y,
+            width=0 - alarm_day,
+            left=alarm_day,
+            height=bar_h,
+            color="orange",
+            alpha=0.7,
+            label="Warning window",
+        )
+        ax3.annotate(
+            first_alarm.start.strftime("%Y-%m-%d"),
+            xy=(alarm_day, bar_y + bar_h),
+            fontsize=8,
+            ha="center",
+        )
+    ax3.axvline(0.0, color="red", lw=2, label="Logged failure")
+    ax3.annotate(
+        failure_time.strftime("%Y-%m-%d"),
+        xy=(0, bar_y + bar_h + 0.05),
+        fontsize=8,
+        ha="left",
+        color="red",
+    )
+    lead = eval_result.lead_time_days
+    ax3.set_xlabel("Days before failure")
+    ax3.set_title(
+        f"Timeline — lead time: {lead:.0f} days"
+        if lead is not None
+        else "Timeline — no pre-failure alarm"
+    )
+    ax3.legend(loc="upper right", fontsize=8)
+    ax3.grid(True, alpha=0.3, axis="x")
+
+    fig.suptitle(f"{turbine_id} failure case study — {failure.remarks}", fontsize=12)
+    fig.tight_layout()
+
+    if out_path is None:
+        out_path = results_dir / "plots" / f"case_study_{turbine_id}.png"
+    out_path = Path(out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"Case study plot written to {out_path}")
+    return out_path

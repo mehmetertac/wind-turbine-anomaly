@@ -56,4 +56,10 @@ python scripts/download_edp.py --instructions
 
 Cleaned per-turbine parquet files (when generated) go in `data/processed/` — also gitignored.
 
+## CWRU bearing vibration (optional side-check)
+
+For component-level fault detection breadth (not the EDP headline), place Case Western Reserve University bearing `.mat` files in `data/raw/cwru/` (gitignored). See [notebooks/02_bearing_vibration_cwru.ipynb](../notebooks/02_bearing_vibration_cwru.ipynb).
+
+Source: [CWRU Bearing Data Center](https://engineering.case.edu/bearingdatacenter) — 12 kHz drive-end accelerometer, normal + inner/outer/ball fault classes.
+
 See also: [docs/DATA.md](../docs/DATA.md)

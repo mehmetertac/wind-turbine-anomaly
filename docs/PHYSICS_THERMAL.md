@@ -196,3 +196,43 @@ Example headline (synthetic EDP, regenerate locally):
 > At the 99th-percentile threshold, physics_hybrid flags gearbox failures a median of **65 days** in advance at **8.5 false alarms per turbine-year**.
 
 Compare to best pure ML (LSTM-AE on synthetic): ~80 days median lead time at ~31 false alarms/turbine-year — hybrid trades some lead time for a much lower false-alarm rate. **Re-run on real EDP before publication.**
+
+## Seasonal robustness (optional terms)
+
+The default linear thermal model uses power, RPM, nacelle temp, and P². If the robustness pass detects seasonal RMSE imbalance across winter/summer/shoulder on healthy validation, it can retry with optional harmonic month features:
+
+```
+month_sin = sin(2π × month / 12)
+month_cos = cos(2π × month / 12)
+```
+
+Controlled by `THERMAL_SEASONAL_TERMS` in `config.py` (default off). The robustness CLI enables this automatically only when the seasonal check fails.
+
+```bash
+python scripts/run_robustness_pass.py
+```
+
+See `results/robustness/seasonal_residuals.json` and [`docs/EVALUATION.md`](EVALUATION.md#robustness-pass).
+
+## Interpretability
+
+SHAP (or Ridge coefficient inspection) on the normal-behavior thermal model shows which inputs drive expected gearbox temperature — the "EE sees the physics" argument for the blog post.
+
+```bash
+python scripts/run_thermal_interpretability.py
+```
+
+Expected ranking on synthetic EDP: **power** and **nacelle temperature** dominate; RPM secondary.
+
+### T06 failure case study
+
+End-to-end annotation (`results/plots/case_study_T06.png`):
+
+1. Raw SCADA: power, bearing temp, nacelle temp
+2. Actual vs predicted bearing temperature + residual drift
+3. Physics-hybrid anomaly score with first alarm marker
+4. Timeline bar: first alarm → logged failure (lead time in days)
+
+Sidecar JSON: `results/interpretability/case_study_T06.json` — copy-paste dates for blog narrative.
+
+Implementation: [`src/wind_turbine_anomaly/eval/thermal_interpretability.py`](../src/wind_turbine_anomaly/eval/thermal_interpretability.py).

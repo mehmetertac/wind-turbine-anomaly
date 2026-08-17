@@ -39,7 +39,13 @@ THERMAL_DRIVER_COLUMNS: list[str] = [
 THERMAL_MIN_POWER_KW = 50.0
 THERMAL_TRAIN_FRACTION = 0.8
 THERMAL_GBM_RMSE_IMPROVEMENT = 0.10  # pick GBM only if RMSE drops by >10%
+THERMAL_SEASONAL_TERMS = False  # sin/cos month features for linear thermal model
 THERMAL_RESULTS_DIR = RESULTS_DIR / "physics_thermal"
+ROBUSTNESS_RESULTS_DIR = RESULTS_DIR / "robustness"
+INTERPRETABILITY_RESULTS_DIR = RESULTS_DIR / "interpretability"
+SEASONAL_RMSE_RATIO_MAX = 1.5  # max(RMSE)/min(RMSE) across seasons on healthy val
+HEALTHY_MAX_RESIDUAL_DRIFT_C = 1.0  # max |mean residual| on healthy turbines (90d)
+CWRU_RAW_DIR = PROJECT_ROOT / "data" / "raw" / "cwru"
 
 # Physics-residual hybrid detector (Days 2–3)
 PHYSICS_HYBRID_DETECTOR = "physics_hybrid"
