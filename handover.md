@@ -3,7 +3,7 @@
 **Repo:** https://github.com/mehmetertac/wind-turbine-anomaly  
 **Branch:** `main`  
 **Last updated:** August 2026  
-**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol; Task 2 — dense + LSTM autoencoder baselines, benchmark table; Task 3 — physics-residual hybrid (Days 1–3); **Week 6 — threshold sweep, headline claim, maintenance narrative, reflection**
+**Scope completed:** Task 1 — EDP data pipeline, Isolation Forest baseline, evaluation protocol; Task 2 — dense + LSTM autoencoder baselines, benchmark table; Task 3 — physics-residual hybrid (Days 1–3); **Week 6 — threshold sweep, headline claim, maintenance narrative, reflection**; **Release v0.1.0 — blog post, README finalization, benchmark figures in `docs/assets/`**
 
 ---
 
@@ -42,7 +42,9 @@ Deliverables over the 12-week plan include this repo, a blog post, and `WEEK_06_
 | **Robustness pass** | `eval/robustness.py`, `scripts/run_robustness_pass.py` | Done |
 | **Thermal interpretability + T06 case study** | `eval/thermal_interpretability.py`, `scripts/run_thermal_interpretability.py` | Done |
 | **Week 6 reflection** | `WEEK_06_REFLECTION.md` | Done |
-| Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done |
+| **Blog post** | `docs/BLOG.md` + `docs/assets/*.png` | Done |
+| **CHANGELOG / v0.1.0** | `CHANGELOG.md`, git tag `v0.1.0` | Done |
+| Notebook | `notebooks/01_eda_and_if_baseline.ipynb` | Done (outputs cleared) |
 | Bearing vibration notebook | `notebooks/02_bearing_vibration_cwru.ipynb` | Done (optional side-check) |
 | Unit tests | `tests/` (41+ tests) | Passing |
 | Pre-commit hook | `.pre-commit-config.yaml` | Runs `pytest -q` |
@@ -163,6 +165,8 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 | [docs/PHYSICS_THERMAL.md](docs/PHYSICS_THERMAL.md) | Gearbox thermal model, residuals (Day 1) |
 | [docs/EVALUATION.md](docs/EVALUATION.md) | Rolling-origin protocol + threshold sweep |
 | [WEEK_06_REFLECTION.md](WEEK_06_REFLECTION.md) | Week 6 build reflection |
+| [docs/BLOG.md](docs/BLOG.md) | Recruiter-facing blog post |
+| [CHANGELOG.md](CHANGELOG.md) | Release notes |
 | **handover.md** (this file) | Session handover |
 
 ---
@@ -170,11 +174,10 @@ Documented in [docs/EVALUATION.md](docs/EVALUATION.md):
 ## 8. What is next (Task 4+)
 
 1. **Obtain real EDP CSVs** — manual browser download after EDP login, or Zenodo CARE adapter
-2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM)
-3. **Blog post** — use `results/interpretability/` and `case_study_T06.png` for "What an EE sees in turbine data that a data scientist misses"
-4. **Cost-optimal threshold picker** — translate trade-off curve into €/alarm maintenance economics
+2. **Re-run all baselines** on real data; compare T01/T06 lead times to literature (~21d / ~89d with CUSUM); refresh `docs/assets/` from `results/plots/`
+3. **Cost-optimal threshold picker** — translate trade-off curve into €/alarm maintenance economics
 
-Previously out of scope, now implemented: SHAP/coefficient interpretability, robustness pass, optional CWRU bearing notebook.
+Shipped in v0.1.0: blog post ([docs/BLOG.md](docs/BLOG.md)), README with pipeline diagram and results tables, cleaned notebooks, release tag.
 
 ---
 
