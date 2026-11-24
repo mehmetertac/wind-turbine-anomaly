@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- `requires-python` pinned to `>=3.11,<3.13`
+- Reproducible installs via `requirements.lock` (hashed, wheels-only) and CI smoke tests on `ubuntu-latest` and `windows-latest`
+
 ## [0.1.0] — 2026-08-18
 
 First public release: EDP gearbox failure-warning benchmark with pure-ML baselines and physics-residual hybrid.

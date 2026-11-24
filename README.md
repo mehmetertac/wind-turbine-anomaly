@@ -111,13 +111,17 @@ One avoided catastrophic gearbox failure (~€100k+) pays for roughly **20 false
 
 ## Reproduce
 
+**Python:** 3.11 or 3.12 only (`requires-python = ">=3.11,<3.13"`). 3.10 and 3.13 are out of scope.
+
 ```bash
 git clone https://github.com/mehmetertac/wind-turbine-anomaly.git
 cd wind-turbine-anomaly
 
 python -m venv .venv
 .venv\Scripts\activate          # Windows; source .venv/bin/activate on Linux/macOS
-pip install -e ".[dev]"
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
+python -m pip install --no-deps --no-build-isolation -e .
 pre-commit install
 
 # Data — pick one

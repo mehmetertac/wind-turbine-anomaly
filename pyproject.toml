@@ -7,7 +7,7 @@ name = "wind-turbine-anomaly"
 version = "0.1.0"
 description = "Gearbox failure prediction on EDP wind turbine SCADA — pure ML vs physics-residual hybrid"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11,<3.13"
 dependencies = [
     "pandas>=2.0",
     "numpy>=1.24",
@@ -25,6 +25,8 @@ dependencies = [
 dev = [
     "pytest>=7.4",
     "pre-commit>=3.5",
+    "setuptools>=68",
+    "wheel",
 ]
 
 [tool.setuptools.packages.find]

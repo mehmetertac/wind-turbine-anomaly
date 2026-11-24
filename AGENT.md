@@ -24,8 +24,12 @@ Guidelines for AI agents and contributors working in this repository.
 
 Setup hooks:
 
+Python **3.11 or 3.12** only. Install from the hash-locked lockfile (wheels only):
+
 ```bash
-pip install -e ".[dev]"
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
+python -m pip install --no-deps --no-build-isolation -e .
 pre-commit install
 ```
 

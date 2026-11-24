@@ -82,10 +82,20 @@ Raw data and `results/` are **gitignored**.
 
 ```bash
 python -m venv .venv
-.venv\Scripts\activate          # Windows
-pip install -e ".[dev]"
+.venv\Scripts\activate          # Windows; source .venv/bin/activate on Linux/macOS
+python -m pip install --upgrade pip
+python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
+python -m pip install --no-deps --no-build-isolation -e .
 pre-commit install
+```
 
+Requires **Python 3.11 or 3.12** (`>=3.11,<3.13`). Regenerate the lock after dependency changes:
+
+```bash
+PIP_ONLY_BINARY=:all: python -m piptools compile --extra=dev --generate-hashes --resolver=backtracking --allow-unsafe --output-file=requirements.lock pyproject.toml
+```
+
+```bash
 # Data (pick one)
 python scripts/generate_synthetic_edp.py --force   # synthetic
 # OR place real EDP CSVs in data/raw/edp/

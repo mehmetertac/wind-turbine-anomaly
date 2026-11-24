@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install locked dependencies (wheels only)
+        run: python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
+
+      - name: Install package (editable, no deps)
+        run: python -m pip install --no-deps --no-build-isolation -e .
+
+      - name: Import smoke
+        run: python -c "import wind_turbine_anomaly"
+        env:
+          MPLBACKEND: Agg
+
+      - name: pytest
+        run: python -m pytest -q
+        env:
+          MPLBACKEND: Agg
